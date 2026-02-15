@@ -1,0 +1,93 @@
+# Task definitions for the Stat Engine pipeline.
+# Tasks execute sequentially; each task's output feeds as context to the next.
+
+schema_analysis:
+  description: >
+    Analyze the CSV file at '{csv_path}'.
+    Use the CSV Reader tool to extract the full schema: column names, data types,
+    null counts, unique value counts, sample values, and summary statistics.
+    Determine the domain of the data (e.g., finance, healthcare, survey, sales).
+    Flag any potential issues: columns with >30% nulls, mixed data types,
+    suspicious patterns (e.g., IDs stored as floats, dates as strings).
+    Provide a clear summary and specific cleaning recommendations.
+  expected_output: >
+    A comprehensive JSON schema report including:
+    - filename, row_count, column_count
+    - For each column: name, inferred type, null_count, unique_count, sample_values
+    - Data domain classification
+    - List of issues found
+    - Specific cleaning recommendations for each problematic column
+  agent: schema_analyst
+
+data_cleaning:
+  description: >
+    Clean the CSV file at '{csv_path}' based on the schema analysis findings.
+    Use the Data Cleaner tool with appropriate instructions:
+    - Handle nulls as recommended (median for numeric, mode for categorical, drop if >50% null)
+    - Remove duplicate rows
+    - Fix data type issues identified in the schema analysis
+    - Remove outliers from numeric columns where appropriate (using IQR method)
+    The instructions must be a valid JSON string matching the tool's expected format.
+  expected_output: >
+    A JSON cleaning report including:
+    - Path to the cleaned CSV file
+    - Rows before and after cleaning
+    - Details of all transformations applied
+    - Any columns dropped and why
+  agent: data_cleaner
+
+database_loading:
+  description: >
+    Design a relational schema for the cleaned data at '{cleaned_csv_path}'.
+    Analyze the column relationships and decide if normalization makes sense:
+    - If there are repeated entity groups (e.g., customer info repeated across rows),
+      consider splitting into separate tables with foreign keys.
+    - If the data is already flat and simple, use a single table.
+    - Do NOT over-normalize — keep it practical.
+    Use the MySQL Schema Designer tool to create the database and load the data.
+    Provide the schema design as a JSON string with table definitions.
+  expected_output: >
+    A JSON result including:
+    - Database name created
+    - List of tables with their columns and row counts
+    - Design rationale explaining the schema choices
+  agent: db_architect
+
+statistical_analysis:
+  description: >
+    Run statistical tests on the cleaned data at '{cleaned_csv_path}'.
+    Use the Statistical Tests tool to automatically run appropriate tests.
+    Review the results and provide interpretations:
+    - For each significant finding, explain what it means practically
+    - For non-significant results, note that no evidence was found
+    - Comment on effect sizes where relevant
+    - Recommend specific chart types that would best visualize the key findings
+    Include chart recommendations as a list of chart specifications.
+  expected_output: >
+    A detailed JSON analysis including:
+    - Data classification (numeric, categorical, mixed)
+    - Normality test results for each numeric column
+    - Descriptive statistics
+    - All statistical test results with p-values and interpretations
+    - Chart recommendations with specific column mappings
+  agent: statistical_analyst
+
+report_generation:
+  description: >
+    Generate a comprehensive analysis report and visualizations.
+    First, use the Chart Generator tool to create the charts recommended by the
+    Statistical Analyst. The chart instructions should be a JSON string with the
+    recommended chart specifications.
+    Then compile everything into a polished Markdown report with these sections:
+    1. Executive Summary (2-3 sentences of key findings)
+    2. Data Overview (source, shape, domain)
+    3. Data Cleaning Summary (what was fixed and why)
+    4. Database Schema (tables created and rationale)
+    5. Statistical Analysis (test results with plain-language interpretations)
+    6. Visualizations (embedded chart images with descriptions)
+    7. Conclusions and Recommendations
+    Save the report as a Markdown file in the outputs directory.
+  expected_output: >
+    A complete Markdown report string that includes all sections listed above,
+    with embedded chart image paths and clear interpretations of all findings.
+  agent: report_generator

@@ -1,0 +1,32 @@
+# Virtual environment
+venv/
+
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Project directories (contain user data)
+uploads/
+outputs/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+.agent/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Misc
+*.bak
+*.swp

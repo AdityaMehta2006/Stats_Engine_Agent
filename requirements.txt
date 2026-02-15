@@ -1,0 +1,24 @@
+# Core framework
+crewai[google-genai]
+crewai-tools
+
+# Web frontend
+streamlit
+
+# Data processing
+pandas
+numpy
+scipy
+
+# Charting
+plotly
+kaleido
+
+# Database
+sqlalchemy
+pymysql
+
+# Utilities
+chardet
+python-dotenv
+pydantic-settings
