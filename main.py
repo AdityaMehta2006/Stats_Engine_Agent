@@ -58,7 +58,7 @@ def init_page():
 
 
 def render_sidebar():
-    """Render the sidebar with info and settings."""
+    """Render the sidebar with info and settings. Returns the selected analysis mode."""
     with st.sidebar:
         st.markdown("### About")
         st.markdown(
@@ -67,12 +67,34 @@ def render_sidebar():
         )
 
         st.markdown("---")
+
+        # Analysis mode toggle
+        st.markdown("### Analysis Mode")
+        regression_mode = st.toggle(
+            "🔬 Linear Regression Mode",
+            value=False,
+            help="When ON, the pipeline focuses on OLS regression analysis: "
+                 "R², VIF multicollinearity, ACF/PACF autocorrelation, "
+                 "residual diagnostics, and regression-specific charts.",
+        )
+        if regression_mode:
+            st.info(
+                "**Regression Mode Active**\n\n"
+                "The analysis will focus on:\n"
+                "- OLS Linear Regression\n"
+                "- VIF (Multicollinearity)\n"
+                "- ACF/PACF (Autocorrelation)\n"
+                "- Residual Diagnostics\n"
+                "- Coefficient Analysis"
+            )
+
+        st.markdown("---")
         st.markdown("### Pipeline Steps")
         steps = [
             "1. Schema Analysis",
             "2. Data Cleaning",
             "3. Database Loading",
-            "4. Statistical Testing",
+            "4. Statistical Testing" if not regression_mode else "4. Regression Analysis",
             "5. Report Generation",
         ]
         for step in steps:
@@ -83,6 +105,10 @@ def render_sidebar():
         st.markdown("- CrewAI + Gemini 2.0 Flash")
         st.markdown("- MySQL (per-CSV databases)")
         st.markdown("- SciPy + Seaborn")
+        if regression_mode:
+            st.markdown("- Statsmodels (OLS/VIF/ACF)")
+
+    return "regression" if regression_mode else "general"
 
 
 def save_uploaded_file(uploaded_file) -> str:
@@ -102,9 +128,9 @@ def display_report(report_content: str):
     st.markdown(report_content)
 
 
-def display_charts(csv_path: str, charts_dir: str):
+def display_charts(csv_path: str, charts_dir: str, analysis_mode: str = "general"):
     """Auto-generate and display interactive Plotly charts."""
-    from src.utils.auto_charts import generate_charts, save_charts_as_png
+    from src.utils.auto_charts import generate_charts, generate_regression_charts, save_charts_as_png
 
     # Find the cleaned CSV (data_cleaner saves as cleaned_*)
     from pathlib import Path
@@ -113,7 +139,10 @@ def display_charts(csv_path: str, charts_dir: str):
     data_path = str(cleaned_files[0]) if cleaned_files else csv_path
 
     with st.spinner("Generating interactive charts..."):
-        charts = generate_charts(data_path)
+        if analysis_mode == "regression":
+            charts = generate_regression_charts(data_path)
+        else:
+            charts = generate_charts(data_path)
 
     if not charts:
         st.warning("Not enough data to generate charts.")
@@ -124,7 +153,8 @@ def display_charts(csv_path: str, charts_dir: str):
 
     # Display interactive charts in tabs
     st.markdown("---")
-    st.markdown("## Interactive Charts")
+    chart_title = "## Regression Charts" if analysis_mode == "regression" else "## Interactive Charts"
+    st.markdown(chart_title)
 
     tab_names = [c["title"] for c in charts]
     tabs = st.tabs(tab_names)
@@ -134,10 +164,23 @@ def display_charts(csv_path: str, charts_dir: str):
             st.caption(chart["description"])
 
 
+def generate_pdf_report(report_text: str, charts_dir: str, output_path: str):
+    """Generate a PDF report with embedded charts."""
+    try:
+        from src.utils.pdf_report import generate_pdf
+        generate_pdf(report_text, charts_dir, output_path)
+        return True
+    except ImportError:
+        return False
+    except Exception as e:
+        st.warning(f"PDF generation failed: {e}")
+        return False
+
+
 def main():
     """Main application."""
     init_page()
-    render_sidebar()
+    analysis_mode = render_sidebar()
 
     # Header
     st.markdown('<p class="main-header">Stat Engine Agent</p>', unsafe_allow_html=True)
@@ -173,7 +216,8 @@ def main():
         with col2:
             st.metric("Size", f"{uploaded_file.size / 1024:.1f} KB")
         with col3:
-            st.metric("Type", uploaded_file.type or "CSV")
+            mode_label = "🔬 Regression" if analysis_mode == "regression" else "📊 General"
+            st.metric("Mode", mode_label)
 
         # Run analysis button
         if st.button("Run Analysis", type="primary", use_container_width=True):
@@ -199,7 +243,11 @@ def main():
 
                 try:
                     from src.crew import run_analysis
-                    result = run_analysis(csv_path, status_callback=status.markdown)
+                    result = run_analysis(
+                        csv_path,
+                        status_callback=status.markdown,
+                        analysis_mode=analysis_mode,
+                    )
                     progress.progress(90)
                     status.markdown("**Generating charts...**")
 
@@ -211,18 +259,33 @@ def main():
                     display_report(report_text)
 
                     # Auto-generate and display interactive charts
-                    display_charts(csv_path, charts_dir)
+                    display_charts(csv_path, charts_dir, analysis_mode=analysis_mode)
 
                     progress.progress(100)
                     status.markdown("**All done!**")
 
-                    # Download button
-                    st.download_button(
-                        label="Download Report (Markdown)",
-                        data=report_text,
-                        file_name="stat_engine_report.md",
-                        mime="text/markdown",
-                    )
+                    # Download buttons
+                    dl_col1, dl_col2 = st.columns(2)
+
+                    with dl_col1:
+                        st.download_button(
+                            label="📝 Download Report (Markdown)",
+                            data=report_text,
+                            file_name="stat_engine_report.md",
+                            mime="text/markdown",
+                        )
+
+                    with dl_col2:
+                        # Generate and offer PDF download
+                        pdf_path = os.path.join(run_dir, "report.pdf")
+                        if generate_pdf_report(report_text, charts_dir, pdf_path):
+                            with open(pdf_path, "rb") as pdf_file:
+                                st.download_button(
+                                    label="📄 Download Report (PDF)",
+                                    data=pdf_file.read(),
+                                    file_name="stat_engine_report.pdf",
+                                    mime="application/pdf",
+                                )
 
                     # Show output location
                     st.success(f"All outputs saved to: {run_dir}")
@@ -250,6 +313,18 @@ def main():
             3. **DB Architect** designs a relational schema and loads data into MySQL
             4. **Statistical Analyst** runs appropriate tests (t-tests, ANOVA, chi-squared, etc.)
             5. **Report Generator** creates charts and compiles a professional report
+            """)
+
+        with st.expander("🔬 What does Regression Mode do?"):
+            st.markdown("""
+            When toggled ON, step 4 switches to **OLS Linear Regression** analysis:
+            - **R² and Adjusted R²** — overall model fit
+            - **VIF (Variance Inflation Factor)** — multicollinearity check
+            - **ACF / PACF** — residual autocorrelation patterns
+            - **Durbin-Watson** — autocorrelation statistic
+            - **Jarque-Bera** — residual normality test
+            - **Breusch-Pagan** — heteroscedasticity test
+            - **Coefficient Analysis** — significance and confidence intervals
             """)
 
 

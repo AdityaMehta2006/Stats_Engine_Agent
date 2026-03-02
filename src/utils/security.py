@@ -6,6 +6,7 @@ Prevents malicious uploads, path traversal, and injection attacks.
 import os
 import re
 import uuid
+import hashlib
 import mimetypes
 from pathlib import Path
 from typing import Optional
@@ -73,10 +74,10 @@ def sanitize_db_name(raw_name: str) -> str:
     # Remove consecutive underscores
     safe = re.sub(r"_+", "_", safe).strip("_")
 
-    # Truncate and add prefix + uniqueness
+    # Truncate and add prefix + deterministic hash (same filename = same DB)
     safe = safe[:40]
-    short_id = uuid.uuid4().hex[:6]
-    return f"csv_{safe}_{short_id}"
+    short_hash = hashlib.md5(base.lower().encode()).hexdigest()[:6]
+    return f"csv_{safe}_{short_hash}"
 
 
 def sanitize_table_name(raw_name: str) -> str:

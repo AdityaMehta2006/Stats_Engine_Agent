@@ -22,3 +22,9 @@ pymysql
 chardet
 python-dotenv
 pydantic-settings
+
+# Statistical analysis (regression mode)
+statsmodels
+
+# PDF report generation
+fpdf2

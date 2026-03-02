@@ -72,6 +72,70 @@ statistical_analysis:
     - Chart recommendations with specific column mappings
   agent: statistical_analyst
 
+statistical_analysis_regression:
+  description: >
+    Run a comprehensive linear regression analysis on the cleaned data at '{cleaned_csv_path}'.
+    Use the Regression Analysis tool to fit an OLS model.
+
+    You MUST systematically answer ALL of the following questions in your analysis:
+
+    Q1. DATASET DESCRIPTION: Briefly describe the dataset — number of observations,
+        number of variables, types of variables (numeric vs categorical), and the
+        data domain.
+
+    Q2. DEPENDENT VARIABLE SELECTION: Identify the most suitable dependent variable
+        for regression analysis. Justify your choice with reasoning based on the
+        data context and domain knowledge.
+
+    Q3. INDEPENDENT VARIABLE SELECTION: Identify one or more independent variables
+        that may influence the dependent variable. Provide reasoning for each
+        selection based on domain knowledge, correlation analysis, and statistical
+        significance.
+
+    Q4. RELATIONSHIP EXPLORATION: Explore the relationships between variables using
+        appropriate summary statistics (means, medians, correlations) and describe
+        what visualizations would best show these relationships (scatter plots,
+        correlation heatmaps, etc.).
+
+    Q5. MODEL SPECIFICATION AND ESTIMATION: Specify the regression model equation
+        (Y = β₀ + β₁X₁ + β₂X₂ + ... + ε). Report all OLS estimation results
+        including R², Adjusted R², F-statistic, and individual coefficient estimates.
+
+    Q6. COEFFICIENT INTERPRETATION: Interpret EACH estimated coefficient in the
+        context of the data. For example: "A one-unit increase in X is associated
+        with a β change in Y, holding other variables constant."
+
+    Q7. MODEL FIT EVALUATION: Evaluate overall model fit using R², Adjusted R²,
+        F-statistic and its p-value, AIC, and BIC. Comment on what percentage of
+        variance in the dependent variable is explained by the model.
+
+    Q8. RESIDUAL ANALYSIS: Perform a thorough residual analysis covering ALL of:
+        a) Residuals vs Fitted values — describe any patterns (should be random)
+        b) Whether residuals are randomly distributed around zero
+        c) Heteroscedasticity assessment — Breusch-Pagan test results and interpretation
+        d) Normality of residuals — QQ plot interpretation, Jarque-Bera test results,
+           histogram shape assessment
+        Also report: Durbin-Watson statistic for autocorrelation, ACF/PACF analysis,
+        and VIF scores for multicollinearity.
+
+    Q9. MODEL APPROPRIATENESS AND IMPROVEMENTS: Based on ALL findings above, discuss:
+        - Is the linear model appropriate for this data?
+        - Which assumptions are met vs violated?
+        - Specific suggestions for improvement (e.g., removing high-VIF predictors,
+          transforming variables, trying non-linear models, adding interaction terms,
+          dropping insignificant predictors)
+
+  expected_output: >
+    A comprehensive structured analysis that answers ALL 9 questions above, including:
+    - Dataset description with variable counts and types
+    - Justified dependent and independent variable selections
+    - Full OLS model results (R², coefficients, p-values, confidence intervals)
+    - Contextual coefficient interpretations
+    - Complete residual diagnostics (Durbin-Watson, Jarque-Bera, Breusch-Pagan, VIF)
+    - ACF/PACF analysis results
+    - Clear assessment of model appropriateness with specific improvement recommendations
+  agent: statistical_analyst
+
 report_generation:
   description: >
     Generate a comprehensive analysis report and visualizations.
@@ -91,3 +155,63 @@ report_generation:
     A complete Markdown report string that includes all sections listed above,
     with embedded chart image paths and clear interpretations of all findings.
   agent: report_generator
+
+report_generation_regression:
+  description: >
+    Generate a comprehensive LINEAR REGRESSION analysis report with visualizations.
+    Compile the Statistical Analyst's regression findings into a professionally
+    structured Markdown report that answers the following questions IN ORDER:
+
+    The report MUST have these sections:
+
+    ## 1. Executive Summary
+    2-3 sentences summarizing the key regression findings, model quality, and main takeaways.
+
+    ## 2. Dataset Description
+    Number of observations, variables, variable types, data domain. (Answers Q1)
+
+    ## 3. Variable Selection
+    ### 3a. Dependent Variable
+    Which variable was chosen as Y and why. (Answers Q2)
+    ### 3b. Independent Variables
+    Which variables were chosen as predictors and the reasoning. (Answers Q3)
+
+    ## 4. Exploratory Analysis
+    Key summary statistics, correlation findings, and relationship patterns.
+    Describe what the charts show. (Answers Q4)
+
+    ## 5. Regression Model
+    ### 5a. Model Specification
+    Write out the model equation: Y = β₀ + β₁X₁ + ... (Answers Q5)
+    ### 5b. Coefficient Interpretation
+    Interpret each coefficient in plain language with context. (Answers Q6)
+    ### 5c. Model Fit
+    R², Adjusted R², F-statistic, AIC, BIC with interpretation. (Answers Q7)
+
+    ## 6. Residual Analysis
+    ### 6a. Residuals vs Fitted Values
+    Pattern analysis — is the scatter random? (Answers Q8a)
+    ### 6b. Residual Distribution
+    Are residuals centered around zero? (Answers Q8b)
+    ### 6c. Heteroscedasticity
+    Breusch-Pagan test results and interpretation. (Answers Q8c)
+    ### 6d. Normality of Residuals
+    QQ plot analysis, Jarque-Bera results, histogram assessment. (Answers Q8d)
+    ### 6e. Autocorrelation
+    Durbin-Watson statistic, ACF/PACF patterns.
+    ### 6f. Multicollinearity
+    VIF scores for each predictor with interpretation.
+
+    ## 7. Model Assessment & Recommendations
+    Is the model appropriate? Which assumptions hold? Specific improvement suggestions. (Answers Q9)
+
+    ## 8. Data Cleaning & Database Notes
+    Brief summary of cleaning steps and schema design.
+
+  expected_output: >
+    A complete, well-structured Markdown report that systematically answers all 9
+    regression analysis questions with clear section headers, statistical evidence,
+    plain-language interpretations, and actionable recommendations. The report should
+    be understandable by both technical and non-technical stakeholders.
+  agent: report_generator
+

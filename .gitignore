@@ -15,6 +15,9 @@ build/
 uploads/
 outputs/
 
+# Test artifacts
+test_pdf.pdf
+
 # Logs
 *.log
 
@@ -22,6 +25,8 @@ outputs/
 .vscode/
 .idea/
 .agent/
+.agents/
+.gemini/
 
 # OS
 Thumbs.db
@@ -30,3 +35,4 @@ Thumbs.db
 # Misc
 *.bak
 *.swp
+*.tmp

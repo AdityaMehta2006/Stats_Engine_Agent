@@ -79,12 +79,15 @@ class AnalysisState(BaseModel):
     # Input
     csv_path: str = ""
     original_filename: str = ""
+    analysis_mode: str = "general"  # "general" or "regression"
 
     # Schema Analyst output
     schema_info: Optional[SchemaInfo] = None
+    pii_columns: dict[str, str] = Field(default_factory=dict)  # col -> PII type
 
     # Data Cleaner output
     cleaned_csv_path: str = ""
+    masked_csv_path: str = ""
     cleaning_report: Optional[CleaningReport] = None
 
     # DB Architect output
@@ -93,6 +96,7 @@ class AnalysisState(BaseModel):
     # Statistical Analyst output
     test_results: list[TestResult] = Field(default_factory=list)
     data_classification: str = ""  # e.g. "mostly numeric", "mixed", "categorical"
+    regression_results: Optional[dict] = None  # OLS results when in regression mode
 
     # Report Generator output
     charts: list[ChartInfo] = Field(default_factory=list)

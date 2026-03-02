@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     # Upload
     max_upload_size_mb: int = Field(default=50)
 
+    # Analysis mode: "general" or "regression"
+    analysis_mode: str = Field(default="general")
+
     # Paths (derived, not from .env)
     base_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parent.parent.parent)
 

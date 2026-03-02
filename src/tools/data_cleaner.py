@@ -1,6 +1,6 @@
 """
 DataCleanerTool -- Cleans and preprocesses CSV data.
-Handles nulls, duplicates, type conversions, and outlier removal.
+Handles nulls, duplicates, type conversions, outlier removal, and PII masking.
 """
 
 import json
@@ -8,12 +8,14 @@ import pandas as pd
 import numpy as np
 from crewai.tools import tool
 
+from src.utils.data_masker import detect_pii, mask_dataframe, get_masking_summary
+
 
 @tool("Data Cleaner")
 def data_cleaner_tool(file_path: str, instructions: str) -> str:
     """
     Clean a CSV file based on agent instructions.
-    Performs: duplicate removal, null handling, type fixes, and outlier removal.
+    Performs: duplicate removal, null handling, type fixes, outlier removal, and PII masking.
     Saves the cleaned data to a new file and returns a cleaning report.
 
     Args:
@@ -152,13 +154,28 @@ def data_cleaner_tool(file_path: str, instructions: str) -> str:
         if df.empty:
             report["notes"] += "WARNING: All rows were removed during cleaning. "
 
-        # Save cleaned file
+        # Save cleaned file (full data -- used by statistical tools and charts)
         from pathlib import Path
         cleaned_path = str(Path(file_path).parent / f"cleaned_{Path(file_path).name}")
         df.to_csv(cleaned_path, index=False)
 
+        # 6. PII detection and masking
+        pii_map = detect_pii(df)
+        pii_summary = get_masking_summary(pii_map)
+        report["pii_detected"] = pii_map if pii_map else None
+        report["pii_summary"] = pii_summary
+
+        # Save masked version (for agent context and reports)
+        masked_path = None
+        if pii_map:
+            masked_df = mask_dataframe(df, pii_map)
+            masked_path = str(Path(file_path).parent / f"masked_cleaned_{Path(file_path).name}")
+            masked_df.to_csv(masked_path, index=False)
+            report["notes"] += f"PII masking applied to {len(pii_map)} column(s). "
+
         result = {
             "cleaned_file_path": cleaned_path,
+            "masked_file_path": masked_path,
             "cleaning_report": report,
         }
         return json.dumps(result, indent=2)

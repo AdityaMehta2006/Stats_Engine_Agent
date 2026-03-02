@@ -1,6 +1,7 @@
 """
 Crew orchestration for the Stat Engine pipeline.
 Wires agents, tasks, and tools into a sequential CrewAI workflow.
+Supports both 'general' and 'regression' analysis modes.
 """
 
 import os
@@ -16,6 +17,7 @@ from src.tools.csv_reader import csv_reader_tool
 from src.tools.data_cleaner import data_cleaner_tool
 from src.tools.mysql_loader import mysql_schema_designer_tool
 from src.tools.statistical_tests import statistical_test_tool
+from src.tools.regression_analysis import regression_analysis_tool
 from src.tools.chart_generator import chart_generator_tool
 
 
@@ -43,12 +45,13 @@ def _get_llm() -> LLM:
     )
 
 
-def build_crew(csv_path: str) -> Crew:
+def build_crew(csv_path: str, analysis_mode: str = "general") -> Crew:
     """
     Build and return a Crew configured for the full analysis pipeline.
 
     Args:
         csv_path: Absolute path to the uploaded CSV file.
+        analysis_mode: "general" for standard stats, "regression" for OLS-focused analysis.
     """
     settings = get_settings()
     llm = _get_llm()
@@ -101,11 +104,14 @@ def build_crew(csv_path: str) -> Crew:
         allow_delegation=False,
     )
 
+    # Select the tool based on analysis mode
+    stats_tool = regression_analysis_tool if analysis_mode == "regression" else statistical_test_tool
+
     statistical_analyst = Agent(
         role=agent_configs["statistical_analyst"]["role"],
         goal=agent_configs["statistical_analyst"]["goal"],
         backstory=agent_configs["statistical_analyst"]["backstory"],
-        tools=[statistical_test_tool],
+        tools=[stats_tool],
         llm=llm,
         verbose=True,
         allow_delegation=False,
@@ -144,16 +150,20 @@ def build_crew(csv_path: str) -> Crew:
         context=[cleaning_task],
     )
 
+    # Select the right task config based on analysis mode
+    stats_task_key = "statistical_analysis_regression" if analysis_mode == "regression" else "statistical_analysis"
     stats_task = Task(
-        description=task_configs["statistical_analysis"]["description"].format(cleaned_csv_path=csv_path),
-        expected_output=task_configs["statistical_analysis"]["expected_output"],
+        description=task_configs[stats_task_key]["description"].format(cleaned_csv_path=csv_path),
+        expected_output=task_configs[stats_task_key]["expected_output"],
         agent=statistical_analyst,
         context=[cleaning_task],
     )
 
+    # Select the right report task based on analysis mode
+    report_task_key = "report_generation_regression" if analysis_mode == "regression" else "report_generation"
     report_task = Task(
-        description=task_configs["report_generation"]["description"],
-        expected_output=task_configs["report_generation"]["expected_output"],
+        description=task_configs[report_task_key]["description"],
+        expected_output=task_configs[report_task_key]["expected_output"],
         agent=report_generator,
         context=[schema_task, cleaning_task, db_task, stats_task],
         output_file=report_path,
@@ -166,7 +176,6 @@ def build_crew(csv_path: str) -> Crew:
         tasks=[schema_task, cleaning_task, db_task, stats_task, report_task],
         process=Process.sequential,
         verbose=True,
-        max_rpm=5,  # Conservative -- safe for Gemini free tier new accounts
     )
 
     return crew
@@ -200,16 +209,17 @@ def _extract_retry_delay(error: Exception) -> int | None:
     return None
 
 
-def run_analysis(csv_path: str, status_callback=None) -> dict:
+def run_analysis(csv_path: str, status_callback=None, analysis_mode: str = "general") -> dict:
     """
     Run the full analysis pipeline with automatic retry on quota errors.
 
     Args:
         csv_path: Absolute path to the CSV file.
         status_callback: Optional callable for status updates (e.g., Streamlit st.write).
+        analysis_mode: "general" or "regression".
 
     Returns:
-        Dict with keys: report (str), run_dir (str), charts_dir (str).
+        Dict with keys: report (str), run_dir (str), charts_dir (str), analysis_mode (str).
     """
     settings = get_settings()
 
@@ -223,7 +233,7 @@ def run_analysis(csv_path: str, status_callback=None) -> dict:
     run_dir = str(settings.run_dir(csv_stem))
     charts_dir = str(settings.run_charts_dir(csv_stem))
 
-    crew = build_crew(csv_path)
+    crew = build_crew(csv_path, analysis_mode=analysis_mode)
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -232,6 +242,7 @@ def run_analysis(csv_path: str, status_callback=None) -> dict:
                 "report": str(result),
                 "run_dir": run_dir,
                 "charts_dir": charts_dir,
+                "analysis_mode": analysis_mode,
             }
         except Exception as e:
             if _is_quota_error(e) and attempt < MAX_RETRIES:

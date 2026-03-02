@@ -72,14 +72,16 @@ def db_connection(db_name: str) -> Generator[Connection, None, None]:
 
 def create_database(db_name: str) -> str:
     """
-    Create a new MySQL database.
+    Create a new MySQL database (drops existing for clean slate).
     Returns the database name on success.
     """
     with server_connection() as conn:
-        # Using text() with proper escaping -- db names can't be parameterized
-        # so we sanitize the name before reaching this point (see security.py)
-        conn.execute(text(f"CREATE DATABASE IF NOT EXISTS `{db_name}`"))
-        conn.execute(text(f"ALTER DATABASE `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+        # Drop existing database to ensure clean overwrite on repeated runs
+        conn.execute(text(f"DROP DATABASE IF EXISTS `{db_name}`"))
+        conn.execute(text(
+            f"CREATE DATABASE `{db_name}` "
+            f"CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+        ))
         conn.commit()
     return db_name
 
